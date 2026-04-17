@@ -55,6 +55,7 @@ func NewBase(typ, id string) BaseEnvelope {
 
 type AuthenticateMsg struct {
 	BaseEnvelope
+	KrylaID        string `json:"kryla_id,omitempty"`
 	IdentityPublic string `json:"identity_public"`
 	Signature      string `json:"signature"`
 }

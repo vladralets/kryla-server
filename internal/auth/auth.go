@@ -20,23 +20,33 @@ func NewAuthenticator(ih *identity.Handler) *Authenticator {
 	return &Authenticator{identityHandler: ih}
 }
 
-// Verify checks the client's authentication. The client signs its own public
-// key with its private key (self-signature). On success the identity is
-// registered (or looked up) and the kryla ID is returned.
-func (a *Authenticator) Verify(ctx context.Context, identityPublicHex, signatureHex string) (string, error) {
-	// The message being signed is the public key bytes themselves.
-	ok, err := crypto.VerifyEd25519(identityPublicHex, identityPublicHex, signatureHex)
-	if err != nil {
-		return "", fmt.Errorf("verify signature: %w", err)
-	}
-	if !ok {
-		return "", fmt.Errorf("invalid signature")
+// Verify checks the client's authentication.
+//
+// For MVP we use Trust-On-First-Use (TOFU): if a signature is provided, we
+// verify it; if not, we trust the public key on first connection and bind it
+// permanently to the kryla ID. Subsequent connections must use the same key
+// (enforced via the unique constraint on identities.public_key).
+func (a *Authenticator) Verify(ctx context.Context, identityPublicHex, signatureHex, clientKrylaID string) (string, error) {
+	if identityPublicHex == "" {
+		return "", fmt.Errorf("missing identity public key")
 	}
 
-	slog.Info("signature verified", "public_key", truncateKey(identityPublicHex))
+	if signatureHex != "" {
+		// Optional: verify if client supplied a signature.
+		ok, err := crypto.VerifyEd25519(identityPublicHex, identityPublicHex, signatureHex)
+		if err != nil {
+			return "", fmt.Errorf("verify signature: %w", err)
+		}
+		if !ok {
+			return "", fmt.Errorf("invalid signature")
+		}
+		slog.Info("signature verified", "public_key", truncateKey(identityPublicHex))
+	} else {
+		slog.Info("TOFU auth (no signature)", "public_key", truncateKey(identityPublicHex))
+	}
 
-	// Register or retrieve existing identity
-	krylaID, err := a.identityHandler.RegisterOrGet(ctx, identityPublicHex)
+	// Register or retrieve existing identity; prefer client's kryla ID.
+	krylaID, err := a.identityHandler.RegisterOrGet(ctx, identityPublicHex, clientKrylaID)
 	if err != nil {
 		return "", fmt.Errorf("register/get identity: %w", err)
 	}

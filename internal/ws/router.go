@@ -68,7 +68,7 @@ func (r *Router) Route(c *Client, data []byte) {
 func (r *Router) handleAuthenticate(c *Client, m *AuthenticateMsg) {
 	ctx := context.Background()
 
-	krylaID, err := r.authenticator.Verify(ctx, m.IdentityPublic, m.Signature)
+	krylaID, err := r.authenticator.Verify(ctx, m.IdentityPublic, m.Signature, m.KrylaID)
 	if err != nil {
 		slog.Warn("auth failed", "err", err)
 		sendError(c, m.ID, 401, "authentication failed: "+err.Error())

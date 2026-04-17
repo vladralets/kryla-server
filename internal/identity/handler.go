@@ -18,7 +18,12 @@ func NewHandler(store *Store) *Handler {
 
 // RegisterOrGet either registers a new identity for the given public key or
 // returns the existing identity. It returns the kryla ID.
-func (h *Handler) RegisterOrGet(ctx context.Context, publicKeyHex string) (string, error) {
+//
+// If clientKrylaID is provided (non-empty) and the public key is unseen, use
+// it as the kryla ID. This preserves the user's locally-generated identifier.
+// If the public key already exists, return the stored kryla ID regardless of
+// what the client supplied.
+func (h *Handler) RegisterOrGet(ctx context.Context, publicKeyHex, clientKrylaID string) (string, error) {
 	// Check if this public key already exists
 	existing, err := h.store.GetByPublicKey(ctx, publicKeyHex)
 	if err != nil {
@@ -29,10 +34,13 @@ func (h *Handler) RegisterOrGet(ctx context.Context, publicKeyHex string) (strin
 		return existing.KrylaID, nil
 	}
 
-	// Derive deterministic kryla ID
-	krylaID, err := KrylaIDFromPublicKey(publicKeyHex)
-	if err != nil {
-		return "", fmt.Errorf("derive kryla id: %w", err)
+	// Pick kryla ID: prefer client's, fall back to deterministic derivation.
+	krylaID := clientKrylaID
+	if krylaID == "" {
+		krylaID, err = KrylaIDFromPublicKey(publicKeyHex)
+		if err != nil {
+			return "", fmt.Errorf("derive kryla id: %w", err)
+		}
 	}
 
 	if err := h.store.Register(ctx, krylaID, publicKeyHex); err != nil {
