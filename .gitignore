@@ -1,4 +1,4 @@
-kryla-server
+/kryla-server
 *.exe
 *.log
 .env
