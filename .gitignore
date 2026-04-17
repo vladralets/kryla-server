@@ -1,0 +1,6 @@
+kryla-server
+*.exe
+*.log
+.env
+.env.local
+.DS_Store

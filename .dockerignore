@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.md
+README*
+docker-compose.yml
+fly.toml
+render.yaml
+kryla-server
+initdb
